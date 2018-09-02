@@ -55,8 +55,8 @@ class ResetPasswordConfirm(APIView):
         expiry_date = reset_password_token.created_at + timedelta(hours=password_reset_token_validation_time)
 
         if timezone.now() > expiry_date:
-            # delete expired token
-            reset_password_token.delete()
+            # mark token as expired
+            reset_password_token.update(expired=True, used=True)
             return Response({'status': 'expired'}, status=status.HTTP_404_NOT_FOUND)
 
         # change users password
