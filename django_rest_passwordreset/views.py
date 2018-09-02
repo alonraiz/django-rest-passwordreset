@@ -89,15 +89,6 @@ class ResetPasswordRequestToken(APIView):
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
 
-        # before we continue, delete all existing expired tokens
-        password_reset_token_validation_time = get_password_reset_token_expiry_time()
-
-        # datetime.now minus expiry hours
-        now_minus_expiry_time = timezone.now() - timedelta(hours=password_reset_token_validation_time)
-
-        # delete all tokens where created_at < now - 24 hours
-        ResetPasswordToken.objects.filter(created_at__lte=now_minus_expiry_time).delete()
-
         # find a user by email address (case insensitive search)
         users = User.objects.filter(email__iexact=email)
 
