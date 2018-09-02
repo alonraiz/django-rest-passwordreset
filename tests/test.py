@@ -83,7 +83,7 @@ class AuthTestCase(APITestCase, HelperMixin):
         """ Tests resetting a password """
 
         # there should be zero tokens
-        self.assertEqual(ResetPasswordToken.objects.all().count(), 0)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 0)
 
         response = self.rest_do_request_reset_token(email="user1@mail.com")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -94,7 +94,7 @@ class AuthTestCase(APITestCase, HelperMixin):
         self.assertNotEqual(last_reset_password_token.key, "")
 
         # there should be one token
-        self.assertEqual(ResetPasswordToken.objects.all().count(), 1)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 1)
 
         # if the same user tries to reset again, the user will get the same token again
         response = self.rest_do_request_reset_token(email="user1@mail.com")
@@ -104,7 +104,7 @@ class AuthTestCase(APITestCase, HelperMixin):
         self.assertNotEqual(last_reset_password_token.key, "")
 
         # there should be one token
-        self.assertEqual(ResetPasswordToken.objects.all().count(), 1)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 1)
         # and it should be assigned to user1
         self.assertEqual(
             ResetPasswordToken.objects.filter(key=last_reset_password_token.key).first().user.username,
@@ -116,7 +116,7 @@ class AuthTestCase(APITestCase, HelperMixin):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # there should be zero tokens
-        self.assertEqual(ResetPasswordToken.objects.all().count(), 0)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 0)
 
         # try to login with the old username/password (should fail)
         self.assertFalse(
@@ -141,7 +141,7 @@ class AuthTestCase(APITestCase, HelperMixin):
         # create a token for user 1
         response = self.rest_do_request_reset_token(email="user1@mail.com")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(ResetPasswordToken.objects.all().count(), 1)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 1)
         self.assertTrue(mock_reset_password_token_created.called)
         self.assertEquals(mock_reset_password_token_created.call_count, 1)
         token1 = mock_reset_password_token_created.call_args[1]['reset_password_token']
@@ -149,7 +149,7 @@ class AuthTestCase(APITestCase, HelperMixin):
         # create another token for user 2
         response = self.rest_do_request_reset_token(email="user2@mail.com")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        tokens = ResetPasswordToken.objects.all()
+        tokens = ResetPasswordToken.objects.filter(used=False)
         self.assertEqual(tokens.count(), 2)
         self.assertEquals(mock_reset_password_token_created.call_count, 2)
         token2 = mock_reset_password_token_created.call_args[1]['reset_password_token']
@@ -160,19 +160,19 @@ class AuthTestCase(APITestCase, HelperMixin):
         # try to request another token, there should still always be two keys
         response = self.rest_do_request_reset_token(email="user1@mail.com")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(ResetPasswordToken.objects.all().count(), 2)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 2)
 
         # create another token for user 2
         response = self.rest_do_request_reset_token(email="user2@mail.com")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(ResetPasswordToken.objects.all().count(), 2)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 2)
 
         # try to reset password of user2
         response = self.rest_do_reset_password_with_token(token2.key, "secret2_new")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # now there should only be one token left (token1)
-        self.assertEqual(ResetPasswordToken.objects.all().count(), 1)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 1)
         self.assertEqual(ResetPasswordToken.objects.filter(key=token1.key).count(), 1)
 
         # user 2 should be able to login with "secret2_new" now
@@ -205,7 +205,7 @@ class AuthTestCase(APITestCase, HelperMixin):
         # request token for user1
         response = self.rest_do_request_reset_token(email="user1@mail.com")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(ResetPasswordToken.objects.all().count(), 1)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 1)
 
         # verify that the reset_password_token_created signal was fired
         self.assertTrue(mock_reset_password_token_created.called)

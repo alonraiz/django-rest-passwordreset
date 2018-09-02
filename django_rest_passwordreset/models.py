@@ -58,6 +58,8 @@ class ResetPasswordToken(models.Model):
         default=""
     )
 
+    used = models.BooleanField(default=False)
+
     def save(self, *args, **kwargs):
         if not self.key:
             self.key = self.generate_key()

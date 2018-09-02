@@ -46,7 +46,7 @@ class ResetPasswordConfirm(APIView):
         password_reset_token_validation_time = get_password_reset_token_expiry_time()
 
         # find token
-        reset_password_token = ResetPasswordToken.objects.filter(key=token).first()
+        reset_password_token = ResetPasswordToken.objects.filter(key=token, used=False).first()
 
         if reset_password_token is None:
             return Response({'status': 'notfound'}, status=status.HTTP_404_NOT_FOUND)
@@ -66,8 +66,8 @@ class ResetPasswordConfirm(APIView):
             reset_password_token.user.save()
             post_password_reset.send(sender=self.__class__, user=reset_password_token.user)
 
-        # Delete all password reset tokens for this user
-        ResetPasswordToken.objects.filter(user=reset_password_token.user).delete()
+        # Mark token as used
+        ResetPasswordToken.objects.filter(user=reset_password_token.user).update(used=True)
 
         return Response({'status': 'OK'})
 
