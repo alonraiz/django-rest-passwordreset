@@ -104,11 +104,9 @@ class ResetPasswordRequestToken(APIView):
 
         # No active user found, raise a validation error
         if not active_user_found:
-            raise ValidationError({
-                'email': ValidationError(
-                    _("There is no active user associated with this e-mail address or the password can not be changed"),
-                    code='invalid')}
-            )
+            return Response({'status': 'There is no active user associated with this e-mail address or the password '
+                                       'can not be changed'}, status=status.HTTP_400_BAD_REQUEST)
+
 
         # last but not least: iterate over all users that are active and can change their password
         # and create a Reset Password Token and send a signal with the created token
