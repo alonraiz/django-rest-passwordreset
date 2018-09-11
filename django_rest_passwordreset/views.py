@@ -95,7 +95,7 @@ class ResetPasswordRequestToken(APIView):
 
     schema = AutoSchema(
         manual_fields=[
-            coreapi.Field('email', required=True, type='email'),
+            coreapi.Field('email', location='body', required=True, type='email'),
         ]
     )
 
