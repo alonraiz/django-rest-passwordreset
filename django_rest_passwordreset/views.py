@@ -6,11 +6,14 @@ from django.utils import timezone
 from rest_framework import parsers, renderers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.schemas import AutoSchema
 
 from django_rest_passwordreset.serializers import EmailSerializer, PasswordTokenSerializer
 from django_rest_passwordreset.models import ResetPasswordToken
 from django_rest_passwordreset.signals import reset_password_token_created, pre_password_reset, post_password_reset
 from django_rest_passwordreset.utils import get_client_masked_ip
+
+import coreapi
 
 User = get_user_model()
 
@@ -34,6 +37,13 @@ class ResetPasswordConfirm(APIView):
     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
     renderer_classes = (renderers.JSONRenderer,)
     serializer_class = PasswordTokenSerializer
+
+    schema = AutoSchema(
+        manual_fields=[
+            coreapi.Field('password', location='body', required=True),
+            coreapi.Field('token', location='body', required=True),
+        ]
+    )
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -82,6 +92,13 @@ class ResetPasswordRequestToken(APIView):
     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
     renderer_classes = (renderers.JSONRenderer,)
     serializer_class = EmailSerializer
+
+    schema = AutoSchema(
+        manual_fields=[
+            coreapi.Field('email', required=True, type='email'),
+        ]
+    )
+
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
