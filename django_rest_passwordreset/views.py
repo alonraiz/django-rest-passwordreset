@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from django_rest_passwordreset.serializers import EmailSerializer, PasswordTokenSerializer
 from django_rest_passwordreset.models import ResetPasswordToken
 from django_rest_passwordreset.signals import reset_password_token_created, pre_password_reset, post_password_reset
+from django_rest_passwordreset.utils import get_client_masked_ip
 
 User = get_user_model()
 
@@ -125,7 +126,7 @@ class ResetPasswordRequestToken(APIView):
                     token = ResetPasswordToken.objects.create(
                         user=user,
                         user_agent=request.META['HTTP_USER_AGENT'],
-                        ip_address=request.META['REMOTE_ADDR']
+                        ip_address=get_client_masked_ip(request)
                     )
                 # send a signal that the password token was created
                 # let whoever receives this signal handle sending the email for the password reset
