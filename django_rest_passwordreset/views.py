@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.schemas import AutoSchema
 
-from django_rest_passwordreset.serializers import EmailSerializer, PasswordTokenSerializer
+from django_rest_passwordreset.serializers import *
 from django_rest_passwordreset.models import ResetPasswordToken
 from django_rest_passwordreset.signals import reset_password_token_created, pre_password_reset, post_password_reset
 from django_rest_passwordreset.utils import get_client_masked_ip
@@ -58,15 +58,17 @@ class ResetPasswordConfirm(APIView):
         reset_password_token = ResetPasswordToken.objects.filter(key=token, used=False).first()
 
         if reset_password_token is None:
-            return Response({'status': 'notfound'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'token not found'}, status=status.HTTP_404_NOT_FOUND)
 
         # check expiry date
-        expiry_date = reset_password_token.created_at + timedelta(hours=password_reset_token_validation_time)
-
+        expiry_date = reset_password_token.created_at + timedelta(
+            hours=password_reset_token_validation_time)
         if timezone.now() > expiry_date:
             # mark token as expired
-            reset_password_token.update(expired=True, used=True)
-            return Response({'status': 'expired'}, status=status.HTTP_404_NOT_FOUND)
+            reset_password_token.expired = True
+            reset_password_token.used = True
+            reset_password_token.save()
+            return Response({'error': 'token expired'}, status=status.HTTP_400_BAD_REQUEST)
 
         # change users password
         if reset_password_token.user.has_usable_password():
@@ -78,7 +80,51 @@ class ResetPasswordConfirm(APIView):
         # Mark token as used
         ResetPasswordToken.objects.filter(user=reset_password_token.user).update(used=True)
 
-        return Response({'status': 'OK'})
+        return Response()
+
+
+class ResetPasswordCheck(APIView):
+    """
+    An Api View which provides a method to check that a token is valid.
+    """
+    throttle_classes = ()
+    permission_classes = ()
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = TokenSerializer
+
+    schema = AutoSchema(
+        manual_fields=[
+            coreapi.Field('token', location='body', required=True),
+        ]
+    )
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token = serializer.validated_data['token']
+
+        # get token validation time
+        password_reset_token_validation_time = get_password_reset_token_expiry_time()
+
+        # find token
+        reset_password_token = ResetPasswordToken.objects.filter(key=token, used=False).first()
+
+        if reset_password_token is None:
+            return Response({'error': 'token not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # check expiry date
+        expiry_date = reset_password_token.created_at + timedelta(
+            hours=password_reset_token_validation_time)
+
+        if timezone.now() > expiry_date:
+            # mark token as expired
+            reset_password_token.expired = True
+            reset_password_token.used = True
+            reset_password_token.save()
+            return Response({'error': 'token expired'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response()
 
 
 class ResetPasswordRequestToken(APIView):
@@ -119,7 +165,7 @@ class ResetPasswordRequestToken(APIView):
 
         # No active user found, raise a validation error
         if not active_user_found:
-            return Response({'status': 'There is no active user associated with this e-mail address or the password '
+            return Response({'error': 'There is no active user associated with this e-mail address or the password '
                                        'can not be changed'}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -131,7 +177,7 @@ class ResetPasswordRequestToken(APIView):
                 token = None
 
                 # check if the user already has a token
-                if user.password_reset_tokens.all().count() > 0:
+                if user.password_reset_tokens.filter(expired=False, used=False).count() > 0:
                     # yes, already has a token, re-use this token
                     token = user.password_reset_tokens.all()[0]
                 else:
@@ -145,8 +191,9 @@ class ResetPasswordRequestToken(APIView):
                 # let whoever receives this signal handle sending the email for the password reset
                 reset_password_token_created.send(sender=self.__class__, reset_password_token=token)
         # done
-        return Response({'status': 'OK'})
+        return Response()
 
 
 reset_password_confirm = ResetPasswordConfirm.as_view()
+reset_password_check = ResetPasswordCheck.as_view()
 reset_password_request_token = ResetPasswordRequestToken.as_view()
