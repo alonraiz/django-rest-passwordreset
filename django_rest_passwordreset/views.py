@@ -177,7 +177,7 @@ class ResetPasswordRequestToken(APIView):
 
         # No active user found, raise a validation error
         if not active_user_found:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response()
 
         # last but not least: iterate over all users that are active and can change their password
         # and create a Reset Password Token and send a signal with the created token
