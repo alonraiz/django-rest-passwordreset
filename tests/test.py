@@ -1,9 +1,11 @@
-import json
 from django.contrib.auth.models import User
-from django.db.models import Q
+from django.conf import settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django_rest_passwordreset.models import ResetPasswordToken
+from datetime import datetime, timedelta
+
 try:
     from unittest.mock import patch
 except:
@@ -19,10 +21,21 @@ except:
     from django.core.urlresolvers import reverse
 
 
+def get_password_reset_token_expiry_time():
+    """
+    Returns the password reset token expirty time in hours (default: 24)
+    Set Django SETTINGS.DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME to overwrite this time
+    :return: expiry time
+    """
+    # get token validation time
+    return getattr(settings, 'DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME', 24)
+
+
 class HelperMixin:
     """
     Mixin which encapsulates methods for login, logout, request reset password and reset password confirm
     """
+
     def setUpUrls(self):
         """ set up urls by using djangos reverse function """
         self.reset_password_request_url = reverse('password_reset:reset-password-request')
@@ -73,6 +86,7 @@ class AuthTestCase(APITestCase, HelperMixin):
     """
     Several Test Cases for the Multi Auth Token Django App
     """
+
     def setUp(self):
         self.setUpUrls()
         self.user1 = User.objects.create_user("user1", "user1@mail.com", "secret1")
@@ -130,13 +144,30 @@ class AuthTestCase(APITestCase, HelperMixin):
             msg="User 1 should be able to login with the modified credentials"
         )
 
+    def test_reset_password_expiration(self):
+        token_creation_time = timezone.now() - timedelta(hours=get_password_reset_token_expiry_time() + 1)
+
+        # create expired token
+        token = ResetPasswordToken.objects.create(user=self.user1)
+        token.created_at = token_creation_time
+        token.save()  # can't fake created_at in model creation
+
+        # there should be one tokens
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False, expired=False).count(), 1)
+
+        response = self.rest_do_request_reset_token(email=self.user1.email)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # there should be two tokens - one expired and one valid
+        self.assertEqual(ResetPasswordToken.objects.all().count(), 2)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=True, expired=True).count(), 1)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False, expired=False).count(), 1)
 
     @patch('django_rest_passwordreset.signals.reset_password_token_created.send')
     def test_reset_password_multiple_users(self, mock_reset_password_token_created):
         """ Checks whether multiple password reset tokens can be created for different users """
         # connect signal
         # we need to check whether the signal is getting called
-
 
         # create a token for user 1
         response = self.rest_do_request_reset_token(email="user1@mail.com")
@@ -212,7 +243,8 @@ class AuthTestCase(APITestCase, HelperMixin):
         self.assertEquals(mock_reset_password_token_created.call_count, 1)
 
         token1 = mock_reset_password_token_created.call_args[1]['reset_password_token']
-        self.assertNotEqual(token1.key, "", msg="Verify that the reset_password_token of the reset_password_Token_created signal is not empty")
+        self.assertNotEqual(token1.key, "",
+                            msg="Verify that the reset_password_token of the reset_password_Token_created signal is not empty")
 
         # verify that the other two signals have not yet been called
         self.assertFalse(mock_post_password_reset.called)
@@ -225,7 +257,3 @@ class AuthTestCase(APITestCase, HelperMixin):
         # now the other two signals should have been called
         self.assertTrue(mock_post_password_reset.called)
         self.assertTrue(mock_pre_password_reset.called)
-
-
-
-

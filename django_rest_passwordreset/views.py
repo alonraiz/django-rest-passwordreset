@@ -14,7 +14,6 @@ from django_rest_passwordreset.models import ResetPasswordToken
 from django_rest_passwordreset.signals import reset_password_token_created, pre_password_reset, post_password_reset
 from django_rest_passwordreset.utils import get_client_masked_ip
 
-
 User = get_user_model()
 
 
@@ -26,6 +25,17 @@ def get_password_reset_token_expiry_time():
     """
     # get token validation time
     return getattr(settings, 'DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME', 24)
+
+
+def get_new_token(user, request):
+    """
+    Return new reset password token
+    """
+    return ResetPasswordToken.objects.create(
+        user=user,
+        user_agent=request.META['HTTP_USER_AGENT'],
+        ip_address=get_client_masked_ip(request)
+    )
 
 
 class ResetPasswordConfirm(APIView):
@@ -155,6 +165,9 @@ class ResetPasswordRequestToken(APIView):
 
         active_user_found = False
 
+        # get token validation time
+        password_reset_token_validation_time = get_password_reset_token_expiry_time()
+
         # iterate over all users and check if there is any user that is active
         # also check whether the password can be changed (is useable), as there could be users that are not allowed
         # to change their password (e.g., LDAP user)
@@ -165,7 +178,6 @@ class ResetPasswordRequestToken(APIView):
         # No active user found, raise a validation error
         if not active_user_found:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-
 
         # last but not least: iterate over all users that are active and can change their password
         # and create a Reset Password Token and send a signal with the created token
@@ -178,13 +190,19 @@ class ResetPasswordRequestToken(APIView):
                 if user.password_reset_tokens.filter(expired=False, used=False).count() > 0:
                     # yes, already has a token, re-use this token
                     token = user.password_reset_tokens.all()[0]
+
+                    expiry_date = token.created_at + timedelta(
+                        hours=password_reset_token_validation_time)
+
+                    if timezone.now() > expiry_date:
+                        token.expired = True
+                        token.used = True
+                        token.save()
+                        token = get_new_token(user, request)
+
                 else:
                     # no token exists, generate a new token
-                    token = ResetPasswordToken.objects.create(
-                        user=user,
-                        user_agent=request.META['HTTP_USER_AGENT'],
-                        ip_address=get_client_masked_ip(request)
-                    )
+                    token = get_new_token(user, request)
                 # send a signal that the password token was created
                 # let whoever receives this signal handle sending the email for the password reset
                 reset_password_token_created.send(sender=self.__class__, reset_password_token=token)
