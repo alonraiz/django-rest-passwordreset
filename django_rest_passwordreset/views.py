@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.utils import timezone
 
+import coreapi
 from rest_framework import parsers, renderers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,7 +14,6 @@ from django_rest_passwordreset.models import ResetPasswordToken
 from django_rest_passwordreset.signals import reset_password_token_created, pre_password_reset, post_password_reset
 from django_rest_passwordreset.utils import get_client_masked_ip
 
-import coreapi
 
 User = get_user_model()
 
@@ -145,7 +145,6 @@ class ResetPasswordRequestToken(APIView):
         ]
     )
 
-
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -165,8 +164,7 @@ class ResetPasswordRequestToken(APIView):
 
         # No active user found, raise a validation error
         if not active_user_found:
-            return Response({'error': 'There is no active user associated with this e-mail address or the password '
-                                       'can not be changed'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
         # last but not least: iterate over all users that are active and can change their password
