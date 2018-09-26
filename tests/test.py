@@ -163,6 +163,22 @@ class AuthTestCase(APITestCase, HelperMixin):
         self.assertEqual(ResetPasswordToken.objects.filter(used=True, expired=True).count(), 1)
         self.assertEqual(ResetPasswordToken.objects.filter(used=False, expired=False).count(), 1)
 
+    def test_reset_password_side_channel_attacks(self):
+        start = datetime.now()
+        response = self.rest_do_request_reset_token(email=self.user1.email)
+        end = datetime.now()
+        valid_mail_diff = end - start
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        start = datetime.now()
+        response = self.rest_do_request_reset_token(email='user3@mail.com')
+        end = datetime.now()
+        unvalid_mail_diff = end - start
+        #  make sure server returns normal response for non-valid email
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertTrue(unvalid_mail_diff >= valid_mail_diff)
+
     @patch('django_rest_passwordreset.signals.reset_password_token_created.send')
     def test_reset_password_multiple_users(self, mock_reset_password_token_created):
         """ Checks whether multiple password reset tokens can be created for different users """

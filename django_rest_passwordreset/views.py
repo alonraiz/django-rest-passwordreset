@@ -1,9 +1,11 @@
+import coreapi
+import time
+import random
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.utils import timezone
 
-import coreapi
 from rest_framework import parsers, renderers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -177,6 +179,7 @@ class ResetPasswordRequestToken(APIView):
 
         # No active user found, raise a validation error
         if not active_user_found:
+            time.sleep(random.randint(500, 2000) / 1000)
             return Response()
 
         # last but not least: iterate over all users that are active and can change their password
