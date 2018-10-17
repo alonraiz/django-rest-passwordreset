@@ -24,9 +24,6 @@ class ResetPasswordToken(models.Model):
         """ generates a pseudo random code using os.urandom and binascii.hexlify """
         return binascii.hexlify(os.urandom(32)).decode()
 
-    id = models.AutoField(
-        primary_key=True
-    )
 
     user = models.ForeignKey(
         AUTH_USER_MODEL,

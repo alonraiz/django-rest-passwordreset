@@ -19,6 +19,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='ResetPasswordToken',
             fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='When was this token generated')),
                 ('key', models.CharField(max_length=64, db_index=True, serialize=False, verbose_name='Key')),
                 ('ip_address', models.GenericIPAddressField(default='127.0.0.1', verbose_name='The IP address of this session')),

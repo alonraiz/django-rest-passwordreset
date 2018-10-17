@@ -6,15 +6,6 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
-def populate_auto_incrementing_pk_field(apps, schema_editor):
-    ResetPasswordToken = apps.get_model('django_rest_passwordreset', 'ResetPasswordToken')
-
-    # Generate values for the new id column
-    for i, o in enumerate(ResetPasswordToken.objects.all()):
-        o.id = i + 1
-        o.save()
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -22,8 +13,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(
-            populate_auto_incrementing_pk_field,
-            migrations.RunPython.noop
-        ),
     ]
