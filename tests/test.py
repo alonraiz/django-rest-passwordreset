@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.utils import timezone
+from django.test.utils import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django_rest_passwordreset.models import ResetPasswordToken
@@ -273,3 +274,22 @@ class AuthTestCase(APITestCase, HelperMixin):
         # now the other two signals should have been called
         self.assertTrue(mock_post_password_reset.called)
         self.assertTrue(mock_pre_password_reset.called)
+
+    @patch('django_rest_passwordreset.signals.reset_password_token_created.send')
+    @override_settings(DJANGO_REST_MULTITOKENAUTH_USE_USERNAME=True)
+    def test_username_as_email(self, mock_reset_password_token_created):
+        # there should be zero tokens
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 0)
+
+        user = User.objects.create_user(username="username@mail.com",
+                                        email="email@mail.com",
+                                        password="need_to_have_this")
+
+        response = self.rest_do_request_reset_token(email=user.username)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # check that the signal was sent once
+        self.assertTrue(mock_reset_password_token_created.called)
+        self.assertEqual(mock_reset_password_token_created.call_count, 1)
+        last_reset_password_token = mock_reset_password_token_created.call_args[1]['reset_password_token']
+        self.assertNotEqual(last_reset_password_token.key, "")
+        self.assertEqual(last_reset_password_token.user.id, user.id)

@@ -29,6 +29,15 @@ def get_password_reset_token_expiry_time():
     return getattr(settings, 'DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME', 24)
 
 
+def get_use_username():
+    """
+    Returns if user search need to be based on username instead of email
+    Set Django SETTINGS.DJANGO_REST_MULTITOKENAUTH_USE_USERNAME to overwrite this
+    :return: use username
+    """
+    return getattr(settings, 'DJANGO_REST_MULTITOKENAUTH_USE_USERNAME', False)
+
+
 def get_new_token(user, request):
     """
     Return new reset password token
@@ -163,7 +172,11 @@ class ResetPasswordRequestToken(APIView):
         email = serializer.validated_data['email']
 
         # find a user by email address (case insensitive search)
-        users = User.objects.filter(email__iexact=email)
+
+        if get_use_username():
+            users = User.objects.filter(username__iexact=email)
+        else:
+            users = User.objects.filter(email__iexact=email)
 
         active_user_found = False
 
