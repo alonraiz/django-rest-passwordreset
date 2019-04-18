@@ -293,3 +293,23 @@ class AuthTestCase(APITestCase, HelperMixin):
         last_reset_password_token = mock_reset_password_token_created.call_args[1]['reset_password_token']
         self.assertNotEqual(last_reset_password_token.key, "")
         self.assertEqual(last_reset_password_token.user.id, user.id)
+
+    @patch('django_rest_passwordreset.signals.reset_password_token_created.send')
+    def test_multiple_uses_of_same_token(self, mock_reset_password_token_created):
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 0)
+
+        user = User.objects.create_user(username="username",
+                                        email="email@mail.com",
+                                        password="need_to_have_this")
+
+        response = self.rest_do_request_reset_token(email=user.email)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        token = mock_reset_password_token_created.call_args[1]['reset_password_token']
+
+        first_reset_password = self.rest_do_reset_password_with_token(token.key, 'new_password')
+        self.assertEqual(first_reset_password.status_code, status.HTTP_200_OK)
+
+        second_reset_password = self.rest_do_reset_password_with_token(token.key, 'other_new_password')
+        self.assertEqual(second_reset_password.status_code, status.HTTP_404_NOT_FOUND)
+
