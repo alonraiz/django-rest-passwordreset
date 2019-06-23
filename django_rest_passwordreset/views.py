@@ -221,7 +221,11 @@ class ResetPasswordRequestToken(APIView):
                     token = get_new_token(user, request)
                 # send a signal that the password token was created
                 # let whoever receives this signal handle sending the email for the password reset
-                reset_password_token_created.send(sender=self.__class__, reset_password_token=token)
+                reset_password_token_created.send(
+                    sender=self.__class__,
+                    reset_password_token=token,
+                    request=request
+                )
         # done
         return Response()
 
