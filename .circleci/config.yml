@@ -28,6 +28,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
+            curl https://pyenv.run | bash
             pyenv versions
 #      - run:
 #          name: run tests
