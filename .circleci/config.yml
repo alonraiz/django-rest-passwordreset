@@ -1,22 +1,36 @@
 version: 2
-
 jobs:
+  build:
+    docker:
+      - image: circleci/python:3.7.3
 
-  # using tox
-  toxify:
+    working_directory: ~/repo
 
-      docker:
-        - image: python:3.7
+    steps:
+      - checkout
 
-      steps:
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "requirements_ci.txt" }}
+      - run:
+          name: install dependencies
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install -r requirements_ci.txt
 
-        - checkout
+      - save_cache:
+          paths:
+            - ./venv
+          key: v1-dependencies-{{ checksum "requirements.txt" }}
 
-        - run: pip install tox && tox
-
-workflows:
-  version: 2
-
-  myproj:
-    jobs:
-      - toxify
+      - run:
+          name: run tests
+          command: |
+            . venv/bin/activate
+            pyenv versions
+#      - run:
+#          name: run tests
+#          command: |
+#            . venv/bin/activate
+#            tox
