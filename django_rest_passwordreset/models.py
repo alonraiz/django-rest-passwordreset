@@ -55,6 +55,8 @@ class ResetPasswordToken(models.Model):
         default=""
     )
 
+    is_long_token = models.BooleanField(default=False)
+
     used = models.BooleanField(default=False)
 
     expired = models.BooleanField(default=False)

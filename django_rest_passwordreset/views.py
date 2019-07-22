@@ -19,12 +19,16 @@ from django_rest_passwordreset.utils import get_client_masked_ip
 User = get_user_model()
 
 
-def get_password_reset_token_expiry_time():
+def get_password_reset_token_expiry_time(is_long_token=False):
     """
     Returns the password reset token expirty time in hours (default: 24)
     Set Django SETTINGS.DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME to overwrite this time
     :return: expiry time
     """
+
+    if is_long_token:
+        return getattr(settings, 'DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_LONG_EXPIRY_TIME', 48)
+
     # get token validation time
     return getattr(settings, 'DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME', 24)
 
@@ -73,13 +77,16 @@ class ResetPasswordConfirm(APIView):
         token = serializer.validated_data['token']
 
         # get token validation time
-        password_reset_token_validation_time = get_password_reset_token_expiry_time()
 
         # find token
         reset_password_token = ResetPasswordToken.objects.filter(key=token, used=False).first()
 
         if reset_password_token is None:
             return Response({'error': 'token not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        password_reset_token_validation_time = get_password_reset_token_expiry_time(
+            is_long_token=reset_password_token.is_long_token
+        )
 
         # check expiry date
         expiry_date = reset_password_token.created_at + timedelta(
@@ -126,13 +133,16 @@ class ResetPasswordCheck(APIView):
         token = serializer.validated_data['token']
 
         # get token validation time
-        password_reset_token_validation_time = get_password_reset_token_expiry_time()
 
         # find token
         reset_password_token = ResetPasswordToken.objects.filter(key=token, used=False).first()
 
         if reset_password_token is None:
             return Response({'error': 'token not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        password_reset_token_validation_time = get_password_reset_token_expiry_time(
+            is_long_token=reset_password_token.is_long_token
+        )
 
         # check expiry date
         expiry_date = reset_password_token.created_at + timedelta(
@@ -180,9 +190,6 @@ class ResetPasswordRequestToken(APIView):
 
         active_user_found = False
 
-        # get token validation time
-        password_reset_token_validation_time = get_password_reset_token_expiry_time()
-
         # iterate over all users and check if there is any user that is active
         # also check whether the password can be changed (is useable), as there could be users that are not allowed
         # to change their password (e.g., LDAP user)
@@ -206,6 +213,11 @@ class ResetPasswordRequestToken(APIView):
                 if user.password_reset_tokens.filter(expired=False, used=False).count() > 0:
                     # yes, already has a token, re-use this token
                     token = user.password_reset_tokens.all()[0]
+
+                    # get token validation time
+                    password_reset_token_validation_time = get_password_reset_token_expiry_time(
+                        is_long_token=token.is_long_token
+                    )
 
                     expiry_date = token.created_at + timedelta(
                         hours=password_reset_token_validation_time)

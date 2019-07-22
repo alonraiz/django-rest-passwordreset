@@ -22,12 +22,16 @@ except:
     from django.core.urlresolvers import reverse
 
 
-def get_password_reset_token_expiry_time():
+def get_password_reset_token_expiry_time(is_long_token=False):
     """
     Returns the password reset token expirty time in hours (default: 24)
     Set Django SETTINGS.DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME to overwrite this time
     :return: expiry time
     """
+
+    if is_long_token:
+        return getattr(settings, 'DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_LONG_EXPIRY_TIME', 48)
+
     # get token validation time
     return getattr(settings, 'DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME', 24)
 
@@ -150,6 +154,26 @@ class AuthTestCase(APITestCase, HelperMixin):
 
         # create expired token
         token = ResetPasswordToken.objects.create(user=self.user1)
+        token.created_at = token_creation_time
+        token.save()  # can't fake created_at in model creation
+
+        # there should be one tokens
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False, expired=False).count(), 1)
+
+        response = self.rest_do_request_reset_token(email=self.user1.email)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # there should be two tokens - one expired and one valid
+        self.assertEqual(ResetPasswordToken.objects.all().count(), 2)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=True, expired=True).count(), 1)
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False, expired=False).count(), 1)
+
+    def test_reset_password_long_expiration(self):
+        token_creation_time = timezone.now() - timedelta(hours=get_password_reset_token_expiry_time(True) + 1)
+
+        # create expired token
+        token = ResetPasswordToken.objects.create(user=self.user1)
+        token.is_long_token = True
         token.created_at = token_creation_time
         token.save()  # can't fake created_at in model creation
 
