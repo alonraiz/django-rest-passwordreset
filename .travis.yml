@@ -1,27 +1,20 @@
 sudo: false
+dist: xenial
 language: python
 python: # test various python versions (Django Support for various python versions is described within the exclude: section)
-  - "2.7"
-  - "3.4"
-  - "3.5"
   - "3.6"
-  - "pypy"  # PyPy2
+  - "3.7"
   - "pypy3" # PyPy3
+  - "3.8-dev"  # 3.8 development branch
+  - "nightly"  # nightly build
 env:
-  - DJANGO=1.8
-  - DJANGO=1.11
   - DJANGO=2.0
+  - DJANGO=2.1
+  - DJANGO=2.2
   - DJANGO=master
 matrix:
-  exclude:
-    # Django >= 2.0 does not support Python2.7/PyPy2 anymore
-    - { python: "2.7", env: DJANGO=2.0 }
-    - { python: "pypy", env: DJANGO=2.0 }
-    - { python: "2.7", env: DJANGO=master }
-    - { python: "pypy", env: DJANGO=master }
   allow_failures:
     # newer python versions aswell as pypy may also always break our build
-    - python: "pypy"
     - python: "pypy3"
     - env: DJANGO=master
 cache:
