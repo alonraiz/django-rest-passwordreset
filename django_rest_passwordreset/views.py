@@ -53,6 +53,13 @@ def get_new_token(user, request):
     )
 
 
+def filter_parameters_from_token(token_input):
+    if token_input and '?' in token_input:
+        token_input = token_input.split('?')[0]
+
+    return token_input
+
+
 class ResetPasswordConfirm(APIView):
     """
     An Api View which provides a method to reset a password based on a unique token
@@ -74,7 +81,7 @@ class ResetPasswordConfirm(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         password = serializer.validated_data['password']
-        token = serializer.validated_data['token']
+        token = filter_parameters_from_token(serializer.validated_data['token'])
 
         # get token validation time
 
@@ -130,7 +137,7 @@ class ResetPasswordCheck(APIView):
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        token = serializer.validated_data['token']
+        token = filter_parameters_from_token(serializer.validated_data['token'])
 
         # get token validation time
 

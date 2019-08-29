@@ -45,6 +45,7 @@ class HelperMixin:
         """ set up urls by using djangos reverse function """
         self.reset_password_request_url = reverse('password_reset:reset-password-request')
         self.reset_password_confirm_url = reverse('password_reset:reset-password-confirm')
+        self.reset_password_check_url = reverse('password_reset:reset-password-check')
 
     def django_check_login(self, username, password):
         """
@@ -80,6 +81,19 @@ class HelperMixin:
 
         return self.client.post(
             self.reset_password_confirm_url,
+            data,
+            format='json',
+            HTTP_USER_AGENT=HTTP_USER_AGENT,
+            REMOTE_ADDR=REMOTE_ADDR
+        )
+
+    def rest_do_reset_password_check_token(self, token,  HTTP_USER_AGENT='', REMOTE_ADDR='127.0.0.1'):
+        data = {
+            'token': token,
+        }
+
+        return self.client.post(
+            self.reset_password_check_url,
             data,
             format='json',
             HTTP_USER_AGENT=HTTP_USER_AGENT,
@@ -337,3 +351,41 @@ class AuthTestCase(APITestCase, HelperMixin):
         second_reset_password = self.rest_do_reset_password_with_token(token.key, 'other_new_password')
         self.assertEqual(second_reset_password.status_code, status.HTTP_404_NOT_FOUND)
 
+    @patch('django_rest_passwordreset.signals.reset_password_token_created.send')
+    def test_token_with_url_parameter(self, mock_reset_password_token_created):
+        # there should be zero tokens
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 0)
+
+        response = self.rest_do_request_reset_token(email="user1@mail.com")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # check that the signal was sent once
+        self.assertTrue(mock_reset_password_token_created.called)
+        self.assertEqual(mock_reset_password_token_created.call_count, 1)
+        last_reset_password_token = mock_reset_password_token_created.call_args[1]['reset_password_token']
+        self.assertNotEqual(last_reset_password_token.key, "")
+
+        # there should be one token
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 1)
+
+        reset_token_with_parameter = f'{last_reset_password_token.key}?parameter=value'
+
+        response = self.rest_do_reset_password_check_token(reset_token_with_parameter)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.rest_do_reset_password_with_token(reset_token_with_parameter, "new_secret")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # there should be zero tokens
+        self.assertEqual(ResetPasswordToken.objects.filter(used=False).count(), 0)
+
+        # try to login with the old username/password (should fail)
+        self.assertFalse(
+            self.django_check_login("user1", "secret1"),
+            msg="User 1 should not be able to login with the old credentials"
+        )
+
+        # try to login with the new username/Password (should work)
+        self.assertTrue(
+            self.django_check_login("user1", "new_secret"),
+            msg="User 1 should be able to login with the modified credentials"
+        )
