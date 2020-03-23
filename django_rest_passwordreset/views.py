@@ -86,10 +86,16 @@ class ResetPasswordConfirm(APIView):
         # get token validation time
 
         # find token
-        reset_password_token = ResetPasswordToken.objects.filter(key=token, used=False).first()
+        reset_password_token = ResetPasswordToken.objects.filter(key=token).first()
 
         if reset_password_token is None:
             return Response({'error': 'token not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if reset_password_token.expired:
+            return Response({'error': 'token expired'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if reset_password_token.used:
+            return Response({'error': 'token used'}, status=status.HTTP_400_BAD_REQUEST)
 
         password_reset_token_validation_time = get_password_reset_token_expiry_time(
             is_long_token=reset_password_token.is_long_token
@@ -139,13 +145,17 @@ class ResetPasswordCheck(APIView):
         serializer.is_valid(raise_exception=True)
         token = filter_parameters_from_token(serializer.validated_data['token'])
 
-        # get token validation time
-
         # find token
-        reset_password_token = ResetPasswordToken.objects.filter(key=token, used=False).first()
+        reset_password_token = ResetPasswordToken.objects.filter(key=token).first()
 
         if reset_password_token is None:
             return Response({'error': 'token not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if reset_password_token.expired:
+            return Response({'error': 'token expired'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if reset_password_token.used:
+            return Response({'error': 'token used'}, status=status.HTTP_400_BAD_REQUEST)
 
         password_reset_token_validation_time = get_password_reset_token_expiry_time(
             is_long_token=reset_password_token.is_long_token

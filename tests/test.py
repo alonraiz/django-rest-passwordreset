@@ -268,7 +268,7 @@ class AuthTestCase(APITestCase, HelperMixin):
 
         # try to reset again with token2 (should not work)
         response = self.rest_do_reset_password_with_token(token2.key, "secret2_fake_new")
-        self.assertEquals(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEquals(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # user 2 should still be able to login with "secret2_new" now
         self.assertTrue(
@@ -349,7 +349,7 @@ class AuthTestCase(APITestCase, HelperMixin):
         self.assertEqual(first_reset_password.status_code, status.HTTP_200_OK)
 
         second_reset_password = self.rest_do_reset_password_with_token(token.key, 'other_new_password')
-        self.assertEqual(second_reset_password.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(second_reset_password.status_code, status.HTTP_400_BAD_REQUEST)
 
     @patch('django_rest_passwordreset.signals.reset_password_token_created.send')
     def test_token_with_url_parameter(self, mock_reset_password_token_created):
