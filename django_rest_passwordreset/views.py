@@ -111,6 +111,9 @@ class ResetPasswordConfirm(APIView):
             reset_password_token.save()
             return Response({'error': 'token expired'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if not reset_password_token.user.is_active:
+            return Response({'error': 'inactive user'}, status=status.HTTP_400_BAD_REQUEST)
+
         # change users password
         if reset_password_token.user.has_usable_password():
             pre_password_reset.send(sender=self.__class__, user=reset_password_token.user, request=request)
