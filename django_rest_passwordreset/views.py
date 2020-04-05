@@ -175,6 +175,9 @@ class ResetPasswordCheck(APIView):
             reset_password_token.save()
             return Response({'error': 'token expired'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if not reset_password_token.user.is_active:
+            return Response({'error': 'inactive user'}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response()
 
 
