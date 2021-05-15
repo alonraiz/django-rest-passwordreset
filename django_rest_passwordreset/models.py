@@ -3,7 +3,6 @@ import os
 
 from django.conf import settings
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 
 # Prior to Django 1.5, the AUTH_USER_MODEL setting does not exist.
@@ -13,7 +12,6 @@ from django.utils.translation import ugettext_lazy as _
 AUTH_USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
 
 
-@python_2_unicode_compatible
 class ResetPasswordToken(models.Model):
     class Meta:
         verbose_name = _("Password Reset Token")
